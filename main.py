@@ -1,9 +1,9 @@
 import torch
 from models import SurvivalNet
 
-x = torch.randn(2, 5, 50, 50, 50)
-age = torch.randn(2, 1, 512) # must be 512
-y = torch.randn(2, 5)
+x = torch.randn(2, 5, 50, 50, 50).cuda()
+age = torch.randn(2, 1, 512).cuda() # must be 512
+y = torch.randn(2, 5).cuda()
 
 model = SurvivalNet(brain_input_channels=5)
 

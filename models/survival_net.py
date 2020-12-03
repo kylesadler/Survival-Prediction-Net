@@ -19,7 +19,6 @@ class SurvivalNet(torch.nn.Module):
         self.resnet1D = ResNet1D(1)
 
         self.fc1 = torch.nn.Linear(20490, 10)
-        # Second fully connected layer that outputs our 10 labels
         self.fc2 = torch.nn.Linear(10, 5)
 
     def forward(self, brain_scan, age_vector):
