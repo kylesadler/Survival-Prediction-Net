@@ -1,0 +1,1 @@
+git pull; python3 train.py --logdir=./train_log/unet3d --gpu 2
