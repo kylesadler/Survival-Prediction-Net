@@ -1,23 +1,22 @@
 import torch
 from models import SurvivalNet
 
-x = torch.randn(3, 4)
-y = torch.randn(7)
+x = torch.randn(2, 5, 50, 50, 50)
+age = torch.randn(2, 1, 512) # must be 512
+y = torch.randn(2, 5)
 
-print(x)
-print(y)
+model = SurvivalNet(brain_input_channels=5)
 
-model = SurvivalNet()
-
+# criterion = torch.nn.CrossEntropyLoss(reduction='sum')
 criterion = torch.nn.MSELoss(reduction='sum')
 optimizer = torch.optim.SGD(model.parameters(), lr=1e-4)
-for t in range(500):
+for t in range(1500):
     # Forward pass: Compute predicted y by passing x to the model
-    y_pred = model(x, x)
+    y_pred = model(x, age)
 
     # Compute and print loss
     loss = criterion(y_pred, y)
-    if t % 100 == 99:
+    if t % 10 == 9:
         print(t, loss.item())
 
     # Zero gradients, perform a backward pass, and update the weights.
