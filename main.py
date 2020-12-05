@@ -6,12 +6,6 @@ from eval import (eval_brats, pred_brats, segment_one_image, segment_one_image_d
 
 
 
-try:
-    print(torch.cuda.current_device())
-    torch.cuda.set_device(0)
-    print(torch.cuda.current_device())
-except:
-    pass
 
 x = torch.randn(2, 5, 50, 50, 50)
 age = torch.randn(2, 1, 512) # must be 512
@@ -20,6 +14,9 @@ y = torch.randn(2, 5)
 model = SurvivalNet(brain_input_channels=5)
 
 try:
+    print(torch.cuda.current_device())
+    torch.cuda.set_device(0)
+    print(torch.cuda.current_device())
     x = x.cuda()
     y = y.cuda()
     age = age.cuda()

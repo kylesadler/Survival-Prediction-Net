@@ -5,8 +5,8 @@
 # msresnet = ResNet1D.cuda()
 
 import torch
-from .unet3d import Unet3D
-from .resnet1d import ResNet1D
+from . import Unet3D
+from . import ResNet1D
 
 class FeatureMerger(torch.nn.Module):
     def forward(self, x):
