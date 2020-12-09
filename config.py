@@ -52,6 +52,7 @@ EVAL_EPOCH = 10
 
 # data path
 # BASEDIR = "/data/dataset/BRATS2018/" #'/data/dataset/BRATS2018/'
+DATA_BASEDIR = '/home/kyle/3DUnet-Tensorflow-Brats18/data'
 BASEDIR = '/home/kyle/3DUnet-Tensorflow-Brats18/data'
 TRAIN_DATASET = ['training']
 VAL_DATASET = 'val'   # val or val17 

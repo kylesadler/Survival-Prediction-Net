@@ -1,3 +1,179 @@
+from torch.utils.data import Dataset
+from config import DATA_BASEDIR
+
+brats_paths(DATA_BASEDIR)
+def brats_paths(data_path):
+
+    train_test_split = 0.8 # float between 0 and 1.
+    fold_split = 5 # float between 0 and 1.
+
+    parser.add_argument('--data', help='training data path', default="/data/dataset/BRATS2018/training/")
+    parser.add_argument('--out', help="output path", default="./5fold")
+    parser.add_argument('--fraction', help="precentage of validation data", default=10)
+    args = parser.parse_args()
+    data = {}
+    
+    HGG_filenames = glob.glob(os.path.join(data_path, "HGG", "*"))
+    LGG_filenames = glob.glob(os.path.join(data_path, "LGG", "*"))
+    np.random.shuffle(HGG_filenames)
+    np.random.shuffle(LGG_filenames)
+    
+    val_length_HGG = len(HGG_filenames) // args.fraction
+    val_length_LGG = len(LGG_filenames) // args.fraction
+
+    print(len(HGG_filenames), len(LGG_filenames))
+
+    for fold in range(5):
+        data[f'fold{fold}'] = {}
+
+        data['fold{}'.format(fold)]['val'] = HGG_filenames[0:val_length_HGG] + LGG_filenames[0:val_length_LGG]
+
+        data['fold{}'.format(fold)]['training'] =  HGG_filenames[val_length_HGG:] + LGG_filenames[val_length_LGG:]
+
+    with open(args.out+".pkl", 'wb') as f:
+        pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+
+class FaceLandmarksDataset(Dataset):
+
+    def __init__(self, basedir, mode):
+        """
+        basedir="/data/dataset/BRATS2018/{mode}/{HGG/LGG}/patient_id/{flair/t1/t1ce/t2/seg}"
+        mode: training/val/test
+        """
+        self.basedir = os.path.join(basedir, mode)
+        self.mode = mode
+    
+
+    def load_5fold(self):
+        with open(config.CROSS_VALIDATION_PATH, 'rb') as f:
+            data = pickle.load(f)
+        imgs = data["fold{}".format(config.FOLD)][self.mode]
+        patient_ids = [x.split("/")[-1] for x in imgs]
+        ret = []
+        for idx, file_name in enumerate(imgs):
+            data = {}
+            data['image_data'] = {}
+            data['file_name'] = file_name
+            data['id'] = patient_ids[idx]
+            # read modality
+            mod = glob.glob(file_name+"/*.nii*")
+            assert len(mod) >= 4  # 4mod +1gt
+            for m in mod:
+                if 'seg' in m:
+                    data['gt'] = m
+                else:
+                    _m = m.split("/")[-1].split(".")[0].split("_")[-1]
+                    data['image_data'][_m] = m
+            if 'gt' in data:
+                data['preprocessed'] = crop_brain_region(data['image_data'], data['gt'])
+                del data['image_data']
+                del data['gt']
+            ret.append(data)
+        return ret
+
+    def load_3d(self):
+        """
+        dataset_mode: HGG/LGG/ALL
+        return list(dict[patient_id][modality] = filename.nii.gz)
+        """
+        print("Data Folder: ", self.basedir)
+
+        modalities = ['flair', 't1ce', 't1.', 't2']
+        
+        if 'training' in self.basedir:
+            img_HGG = glob.glob(self.basedir+"/HGG/*")
+            img_LGG = glob.glob(self.basedir+"/LGG/*")
+            imgs = img_HGG + img_LGG
+        else:
+            imgs = glob.glob(self.basedir+"/*")
+        imgs = [x for x in imgs if 'survival_evaluation.csv' not in x]
+        
+        patient_ids = [x.split("/")[-1] for x in imgs]
+        ret = []
+        print("Preprocessing Data ...")
+        for idx, file_name in tqdm(enumerate(imgs), total=len(imgs)):
+            data = {}
+            data['image_data'] = {}
+            data['file_name'] = file_name
+            data['id'] = patient_ids[idx]
+            # read modality
+            mod = glob.glob(file_name+"/*.nii*")
+            assert len(mod) >= 4, '{}'.format(file_name)  # 4mod +1gt
+            for m in mod:
+                if 'seg' in m:
+                    data['gt'] = m
+                else:
+                    _m = m.split("/")[-1].split(".")[0].split("_")[-1]
+                    data['image_data'][_m] = m
+            
+            if 'gt' in data:
+                if not config.NO_CACHE and not 'training' in self.basedir:
+                    data['preprocessed'] = crop_brain_region(data['image_data'], data['gt'])
+                    del data['image_data']
+                    del data['gt']
+            else:
+                data['preprocessed'] = crop_brain_region(data['image_data'], None, with_gt=False)
+                del data['image_data']
+
+            ret.append(data)
+        return ret
+
+    @staticmethod
+    def load_from_file(basedir, names):
+        brats = BRATS_SEG(basedir, names)
+        return  brats.load_5fold()
+
+    @staticmethod
+    def load_many(basedir,names, add_gt=True, add_mask=False):
+        """
+        Load and merges several instance files together.
+        """
+        if not isinstance(names, (list, tuple)):
+            names = [names]
+        ret = []
+        for n in names:
+            brats = BRATS_SEG(basedir, n)
+            ret.extend(brats.load_3d())
+        return ret
+
+    
+
+
+
+
+    def __len__(self):
+        return len(self.landmarks_frame)
+
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+
+        img_name = os.path.join(self.root_dir,
+                                self.landmarks_frame.iloc[idx, 0])
+        image = io.imread(img_name)
+        landmarks = self.landmarks_frame.iloc[idx, 1:]
+        landmarks = np.array([landmarks])
+        landmarks = landmarks.astype('float').reshape(-1, 2)
+        sample = {'image': image, 'landmarks': landmarks}
+
+        if self.transform:
+            sample = self.transform(sample)
+
+        return sample
+
+
+
+
+
+
+
+
+
+
+
+
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # File: data_loader.py
